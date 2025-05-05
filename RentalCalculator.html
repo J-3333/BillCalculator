@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rental Bill Calculator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6fa;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .form-section {
+      background: #fff;
+      padding: 2rem;
+      max-width: 900px;
+      margin: 2rem auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 500;
+    }
+    input[type="text"], input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.25rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .person-section {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #f0f4ff;
+      border-left: 5px solid #007BFF;
+      border-radius: 8px;
+    }
+    .person-section strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    .date-range-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    pre.output, pre#finalOutput {
+      background: #ffffff;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      white-space: pre-wrap;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      font-family: Consolas, Monaco, monospace;
+      line-height: 1.6;
+    }
+    pre#finalOutput {
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      border-left: 6px solid #007BFF;
+      background-color: #f9fbff;
+    }
+    .summary-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #004080;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="bills"></div>
+  <div style="text-align:center">
+    <button onclick="calculateAllBills()">Calculate All</button>
+  </div>
+  <pre id="finalOutput" class="summary-block"></pre>
+
+<script>
+const billTypes = ["Electric", "Gas"];
+billTypes.forEach(billType => createBillForm(billType));
+
+function createBillForm(billType) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'form-section';
+  wrapper.innerHTML = `
+    <h1>${billType} Bill</h1>
+    <label>Total Amount (€): <input class="billAmount" type="number" step="0.01"></label>
+    <label>Bill Start Date: <input class="billStart" type="date"></label>
+    <label>Bill End Date: <input class="billEnd" type="date"></label>
+    <label>Total People in House: <input class="peopleCount" type="number"></label>
+    <div class="stayContainer"></div>
+    <button type="button" onclick="addPerson(this)">➕ Add Person</button>
+    <pre class="output"></pre>
+  `;
+  document.getElementById('bills').appendChild(wrapper);
+}
+
+function parseDate(str) {
+  return new Date(str + 'T00:00:00');
+}
+
+function countDays(startStr, endStr) {
+  const start = parseDate(startStr);
+  const end = parseDate(endStr);
+  if (end < start) return 0;
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+function addPerson(button) {
+  const name = prompt("Enter person's name:");
+  if (!name) return;
+  const section = button.closest('.form-section');
+  const billStart = section.querySelector(".billStart").value;
+  if (!billStart) {
+    alert("Please enter the Bill Start Date first.");
+    return;
+  }
+  const container = section.querySelector('.stayContainer');
+  const person = document.createElement('div');
+  person.className = 'person-section';
+  person.dataset.name = name;
+  person.innerHTML = `
+    <strong>${name}</strong>
+    <div class="date-range-group">
+      <input type="date" value="${billStart}"> to <input type="date" value="${billStart}">
+      <button type="button" class="remove-range">✖</button>
+    </div>
+    <button type="button" class="add-range">+ Add date range</button>
+  `;
+  container.appendChild(person);
+  bindPersonButtons(person, billStart);
+}
+
+function bindPersonButtons(section, billStart) {
+  section.querySelector('.add-range').onclick = function () {
+    const group = document.createElement('div');
+    group.className = 'date-range-group';
+    group.innerHTML = `<input type="date" value="${billStart}"> to <input type="date" value="${billStart}"> 
+      <button type="button" class="remove-range">✖</button>`;
+    section.insertBefore(group, section.querySelector('.add-range'));
+    bindRemoveButtons();
+  };
+  bindRemoveButtons();
+}
+
+function bindRemoveButtons() {
+  document.querySelectorAll('.remove-range').forEach(btn => {
+    btn.onclick = () => btn.parentElement.remove();
+  });
+}
+
+function calculateAllBills() {
+  const sections = document.querySelectorAll('.form-section');
+  const personTotals = {};
+  let finalOutput = "";
+
+  sections.forEach(section => {
+    const sectionOutput = section.querySelector('.output');
+    const billTitle = section.querySelector('h1').innerText;
+    sectionOutput.innerText = `--- ${billTitle.toUpperCase()} BILL SUMMARY ---\n`;
+
+    const billAmount = parseFloat(section.querySelector('.billAmount').value);
+    const billStart = parseDate(section.querySelector('.billStart').value);
+    const billEnd = parseDate(section.querySelector('.billEnd').value);
+    const totalPeople = parseInt(section.querySelector('.peopleCount').value);
+
+    const peopleStays = {};
+    const staySections = section.querySelectorAll(".person-section");
+
+    staySections.forEach(person => {
+      const name = person.dataset.name;
+      const inputs = person.querySelectorAll("input[type='date']");
+      if (!peopleStays[name]) peopleStays[name] = [];
+      for (let i = 0; i < inputs.length; i += 2) {
+        const start = inputs[i].value;
+        const end = inputs[i + 1].value;
+        if (start && end) peopleStays[name].push([start, end]);
+      }
+    });
+
+    const totalDays = countDays(billStart.toISOString().slice(0,10), billEnd.toISOString().slice(0,10));
+    const costPerDay = billAmount / totalDays;
+    const costPerPersonPerDay = costPerDay / totalPeople;
+
+    sectionOutput.innerText += `Total Days: ${totalDays}\n`;
+    sectionOutput.innerText += `Total Amount: €${billAmount.toFixed(2)}\n`;
+    sectionOutput.innerText += `Cost per day: €${costPerDay.toFixed(2)}\n`;
+    sectionOutput.innerText += `Cost per person per day: €${costPerPersonPerDay.toFixed(2)}\n\n`;
+
+    let sumKnown = 0;
+    const restCount = totalPeople - Object.keys(peopleStays).length;
+
+    for (const name in peopleStays) {
+      let personDays = 0;
+      for (const [start, end] of peopleStays[name]) {
+        personDays += countDays(start, end);
+      }
+      const personCost = +(personDays * costPerPersonPerDay).toFixed(2);
+      sumKnown += personCost;
+      personTotals[name] = (personTotals[name] || 0) + personCost;
+      sectionOutput.innerText += `${name}: ${personDays} days → €${personCost.toFixed(2)}\n`;
+    }
+
+    const remainingCost = +(billAmount - sumKnown).toFixed(2);
+    const restShare = restCount > 0 ? +(remainingCost / restCount).toFixed(2) : 0;
+
+    if (restCount > 0) {
+      sectionOutput.innerText += `\nRemaining to split: €${remainingCost.toFixed(2)} among ${restCount} people\n`;
+      sectionOutput.innerText += `Each of the rest pays: €${restShare.toFixed(2)}\n`;
+      for (let i = 1; i <= restCount; i++) {
+        const label = `Rest person ${i}`;
+        sectionOutput.innerText += `${label}: €${restShare.toFixed(2)}\n`;
+        personTotals[label] = (personTotals[label] || 0) + restShare;
+      }
+    }
+  });
+
+  finalOutput += `--- TOTAL PAYMENT BY PERSON ---\n`;
+  for (const name in personTotals) {
+    finalOutput += `${name}: €${personTotals[name].toFixed(2)}\n`;
+  }
+  document.getElementById("finalOutput").innerText = finalOutput;
+}
+</script>
+</body>
+</html>

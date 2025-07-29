@@ -157,11 +157,13 @@ function addPerson(button) {
 
 function bindPersonButtons(section, billStart) {
   section.querySelector('.add-range').onclick = function () {
+    const formSection = section.closest('.form-section');
+    const billEnd = formSection.querySelector('.billEnd').value;
     const group = document.createElement('div');
     group.className = 'date-range-group';
-    group.innerHTML = `<input type="date" value="${billStart}" min="${billStart}" max="${section.querySelector('.billEnd').value}">
+    group.innerHTML = `<input type="date" value="${billStart}" min="${billStart}" max="${billEnd}">
       <span style="margin: 0 0.5rem; font-weight: bold;">to</span>
-      <input type="date" value="${section.querySelector('.billEnd').value}" min="${billStart}" max="${section.querySelector('.billEnd').value}"> 
+      <input type="date" value="${billEnd}" min="${billStart}" max="${billEnd}"> 
       <button type="button" class="remove-range">✖</button>`;
     section.insertBefore(group, section.querySelector('.add-range'));
     bindRemoveButtons();
